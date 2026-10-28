@@ -1,25 +1,34 @@
 import { useHistory } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function Form() {
   const history = useHistory();
+  const queryClient = useQueryClient();
+
   const {
     register,
     handleSubmit,
     formState: { isValid, errors },
   } = useForm({ mode: "all" });
 
-  const handleFormSubmit = (data) => {
-    if (!isValid) return;
-    axios
-      .post(
+  const addContactMutation = useMutation({
+    mutationFn: (data) => {
+      return axios.post(
         `https://688247fb66a7eb81224e18ff.mockapi.io/fihrist/api/contact`,
         data
-      )
-      .then((res) => {
-        history.push("/");
-      });
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      history.push("/");
+    },
+  });
+
+  const handleFormSubmit = (data) => {
+    if (!isValid) return;
+    addContactMutation.mutate(data);
   };
 
   return (
@@ -66,7 +75,9 @@ export default function Form() {
         </ul>
       )}
       <p>
-        <button type="submit">Save</button>
+        <button type="submit" disabled={addContactMutation.isPending}>
+          {addContactMutation.isPending ? "Saving..." : "Save"}
+        </button>
         <button
           type="button"
           onClick={() => {

@@ -1,33 +1,43 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { useHistory } from "react-router-dom";
+import { useParams, useHistory } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function Contact() {
   const { contactId } = useParams();
-  const [contact, setContact] = useState();
   const history = useHistory();
+  const queryClient = useQueryClient(); // Cache'i yönetmek için queryClient'ı çağırıyoruz
 
-  useEffect(() => {
-    axios
-      .get(
+  // 1. Veri Çekme İşlemi (useEffect ve useState yerine)
+  const { data: contact, isLoading } = useQuery({
+    queryKey: ['contact', contactId], // Her kişinin ID'sine göre ayrı önbellek
+    queryFn: async () => {
+      const res = await axios.get(
         `https://688247fb66a7eb81224e18ff.mockapi.io/fihrist/api/contact/${contactId}`
-      )
-      .then((res) => {
-        setContact(res.data);
-      });
-  }, [contactId]);
+      );
+      return res.data;
+    }
+  });
+
+  // 2. Silme İşlemi (useMutation)
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      return axios.delete(
+        `https://688247fb66a7eb81224e18ff.mockapi.io/fihrist/api/contact/${contactId}`
+      );
+    },
+    onSuccess: () => {
+      // Silme başarılı olduğunda SideBar'daki listeyi yenilemesini söylüyoruz
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      // Ardından anasayfaya yönlendiriyoruz
+      history.push("/");
+    }
+  });
 
   const handleDelete = () => {
-    axios
-      .delete(
-        `https://688247fb66a7eb81224e18ff.mockapi.io/fihrist/api/contact/${contactId}`
-      )
-      .then((res) => {
-        history.push("/");
-      });
+    deleteMutation.mutate(); // Mutasyonu tetikler
   };
 
+  if (isLoading) return "Yükleniyor...";
   if (!contact) return "Böyle bir kullanıcı yok";
 
   return (
@@ -37,6 +47,7 @@ export default function Contact() {
           key={contact.avatar}
           src={contact.avatar || null}
           className="w-48 h-48 bg-[#c8c8c8] rounded-3xl object-cover"
+          alt="avatar"
         />
       </div>
 
@@ -67,8 +78,12 @@ export default function Contact() {
         )}
 
         <div className="mt-6">
-          <button className="text-red-500" onClick={handleDelete}>
-            Delete
+          <button 
+            className="text-red-500" 
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending} // Silinirken butonu devre dışı bırak
+          >
+            {deleteMutation.isPending ? "Siliniyor..." : "Delete"}
           </button>
         </div>
       </div>

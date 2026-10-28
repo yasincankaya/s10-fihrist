@@ -1,23 +1,19 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 export default function SideBar() {
-  const [contacts, setContacts] = useState([]);
-
-  useEffect(() => {
-    axios
-      .get("https://688247fb66a7eb81224e18ff.mockapi.io/fihrist/api/contact")
-      .then((res) => {
-        setContacts(res.data);
-      });
-  }, []);
+  // useEffect ve useState yerine useQuery kullanıyoruz
+  const { data: contacts = [], isLoading } = useQuery({
+    queryKey: ['contacts'], // Bu key sayesinde veriyi diğer componentlerden güncelleyebileceğiz
+    queryFn: async () => {
+      const res = await axios.get("https://688247fb66a7eb81224e18ff.mockapi.io/fihrist/api/contact");
+      return res.data;
+    }
+  });
 
   return (
-    <div
-      id="sidebar"
-      className="w-84 bg-stone-100 border-r border-stone-200 flex flex-col"
-    >
+    <div id="sidebar" className="w-84 bg-stone-100 border-r border-stone-200 flex flex-col">
       <h1 className="text-xl font-medium m-0 pt-4 px-8">C2W Contacts</h1>
       <div className="px-8 flex items-center gap-2 py-4 border-b border-stone-300">
         <Link to="/contacts/new">
@@ -28,7 +24,9 @@ export default function SideBar() {
         </Link>
       </div>
       <nav className="px-8 flex-1 overflow-auto pt-4">
-        {contacts.length ? (
+        {isLoading ? (
+          <p><i>Yükleniyor...</i></p>
+        ) : contacts.length ? (
           <ul className="contactList p-0 m-0 list-none">
             {contacts.map((contact) => (
               <li key={contact.id} className="my-1 mx-0">
